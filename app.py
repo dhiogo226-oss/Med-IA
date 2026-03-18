@@ -1,0 +1,4 @@
+import streamlit as st
+
+st.title("Med IA funcionando 🚀")
+st.write("Se você está vendo isso, deu certo!")
