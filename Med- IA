@@ -1,0 +1,182 @@
+import streamlit as st
+
+st.set_page_config(page_title="Med IA", page_icon="🏥")
+
+# ====== ESTILO ======
+st.markdown("""
+<style>
+.user {
+    background-color: #2b313e;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 5px;
+    text-align: right;
+    color: white;
+}
+.bot {
+    background-color: #1f6feb;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 5px;
+    text-align: left;
+    color: white;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🏥 Med IA")
+st.write("💬 Consulta inteligente")
+
+# ====== MEMÓRIA ======
+if "chat" not in st.session_state:
+    st.session_state.chat = []
+
+if "memoria" not in st.session_state:
+    st.session_state.memoria = {
+        "sintomas": set(),
+        "perguntas": [],
+        "interacoes": 0
+    }
+
+memoria = st.session_state.memoria
+
+# ====== FUNÇÕES ======
+
+def normalizar(texto):
+    texto = texto.lower()
+    mapa = {
+        "tô": "estou",
+        "tá": "está",
+        "sem ar": "falta de ar",
+        "peito doendo": "dor no peito",
+        "cabeça": "dor de cabeça"
+    }
+    for k, v in mapa.items():
+        texto = texto.replace(k, v)
+    return texto
+
+
+def detectar(texto):
+    texto = normalizar(texto)
+
+    sintomas_lista = [
+        "dor no peito", "falta de ar", "febre", "tosse",
+        "tontura", "desmaio", "náusea", "vomito",
+        "diarreia", "dor de cabeça"
+    ]
+
+    for s in sintomas_lista:
+        if s in texto:
+            memoria["sintomas"].add(s)
+
+
+def perguntar():
+    perguntas = [
+        "Quando começou?",
+        "Está piorando ou melhorando?",
+        "A dor é leve, média ou forte?",
+        "Isso acontece direto ou vai e volta?",
+        "Tem mais algum sintoma?"
+    ]
+
+    for p in perguntas:
+        if p not in memoria["perguntas"]:
+            memoria["perguntas"].append(p)
+            return p
+
+    return None
+
+
+def calcular_risco():
+    pesos = {
+        "dor no peito": 5,
+        "falta de ar": 5,
+        "desmaio": 5,
+        "febre": 2,
+        "tontura": 2,
+        "dor de cabeça": 2,
+        "tosse": 1,
+        "náusea": 1,
+        "vomito": 1,
+        "diarreia": 1
+    }
+
+    risco = 0
+    for s in memoria["sintomas"]:
+        risco += pesos.get(s, 0)
+
+    return risco
+
+
+def resultado():
+    risco = calcular_risco()
+    sintomas = memoria["sintomas"]
+
+    resposta = "📊 Resultado final:\n\n"
+
+    if risco >= 8:
+        resposta += "🔴 Alto risco\n"
+    elif risco >= 4:
+        resposta += "🟡 Médio risco\n"
+    else:
+        resposta += "🟢 Baixo risco\n"
+
+    resposta += "\n🧠 Possíveis problemas:\n"
+
+    if "dor no peito" in sintomas:
+        resposta += "- Problema cardíaco\n"
+
+    if "falta de ar" in sintomas:
+        resposta += "- Problema respiratório\n"
+
+    if "febre" in sintomas:
+        resposta += "- Infecção\n"
+
+    if "náusea" in sintomas:
+        resposta += "- Problema digestivo\n"
+
+    resposta += "\n👨‍⚕️ Especialistas:\n"
+
+    if "dor no peito" in sintomas:
+        resposta += "- Cardiologista\n"
+
+    if "falta de ar" in sintomas:
+        resposta += "- Pneumologista\n"
+
+    if "náusea" in sintomas:
+        resposta += "- Gastroenterologista\n"
+
+    resposta += "\n🚨 Emergência:\n"
+
+    if risco >= 8:
+        resposta += "⚠️ Procure ajuda imediata!\n📞 SAMU: 192\n🚒 Bombeiros: 193\n👮 Polícia: 190"
+    else:
+        resposta += "Sem urgência aparente."
+
+    return resposta
+
+
+# ====== CHAT ======
+for msg, tipo in st.session_state.chat:
+    if tipo == "user":
+        st.markdown(f'<div class="user">👤 {msg}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="bot">🤖 {msg}</div>', unsafe_allow_html=True)
+
+user_input = st.text_input("Digite sua mensagem...")
+
+if user_input:
+    st.session_state.chat.append((user_input, "user"))
+
+    detectar(user_input)
+    memoria["interacoes"] += 1
+
+    if memoria["interacoes"] < 5:
+        pergunta = perguntar()
+        resposta = pergunta if pergunta else "Pode continuar..."
+    else:
+        resposta = resultado()
+
+    st.session_state.chat.append((resposta, "bot"))
+
+    st.rerun()
